@@ -1,10 +1,32 @@
 import {StyleSheet} from 'react-native';
-
+import {colors} from '../../../style';
 export default style = StyleSheet.create({
-  container: {
-    paddingVertical: 11,
+  channels_container: {
     borderBottomWidth: 1,
-    borderBottomColor: "#BDBDBD"
+    borderBottomColor: colors.primary,
+    flexDirection: 'row',
+    backgroundColor: colors.primary,
+  },
+
+  channels_flatlist_container: {
+    paddingVertical: 11,
+    flex: 1,
+  },
+
+  channels_show_all_container: {
+    paddingHorizontal: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+  },
+
+  channels_show_all_text: {
+    fontSize: 16,
+    lineHeight: 19,
+    letterSpacing: -0.02,
+    color: colors.white,
+    textAlign: 'center',
+    textTransform: 'uppercase',
   },
 
   channel_container: {
@@ -14,15 +36,10 @@ export default style = StyleSheet.create({
     marginHorizontal: 20,
   },
 
-  channel_image_container: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
   channel_title: {
-    fontSize: 16,
-    lineHeight: 19,
+    fontSize: 14,
+    lineHeight: 17,
     letterSpacing: -0.02,
-    color: '#2C2C2C',
+    color: "white",
   },
 });
