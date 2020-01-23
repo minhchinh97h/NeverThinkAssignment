@@ -8,4 +8,6 @@ export interface ChannelInterface {
 export interface rootReducerInterface {
   channels: Array<ChannelInterface>;
   current_channel: string;
+  video_data: any;
+  current_video_id: string;
 }

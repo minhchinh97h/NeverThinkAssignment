@@ -8,10 +8,14 @@ import axios from "axios"
 
 const window_width = Dimensions.get("window").width
 
-export default class Videos extends React.PureComponent<any, any> {
+interface VideosState {
+    should_flatlist_update: number
+}
 
-    state = {
-        video_array: null
+export default class Videos extends React.PureComponent<any, VideosState> {
+
+    state: VideosState = {
+        should_flatlist_update: 0
     }
 
     _keyExtractor = (item: string, index: number) => `videos-section-playlist-videoid-${item}-index-${index}`
@@ -20,24 +24,22 @@ export default class Videos extends React.PureComponent<any, any> {
         <Video
             videoId={item}
             index={index}
+
+            video_data={this.props.video_data}
+            current_video_id={this.props.current_video_id}
+            updateCurrentVideoId={this.props.updateCurrentVideoId}
         />
     )
 
-    _renderVideosBasedOnCurrentChannel = (playlist: Array<string>) => {
-        let video_array: any = []
-        playlist.forEach((videoId: string, index: number) => {
-            video_array.push(
-                <Video videoId={videoId} index={index} key={`videos-section-playlist-videoid-${videoId}-index-${index}`} />
-            )
-        })
-
-        this.setState({
-            video_array
-        })
+    componentDidMount() {
     }
 
-    componentDidMount() {
-        this._renderVideosBasedOnCurrentChannel(this.props.channels[this.props.current_channel].playlist)
+    componentDidUpdate(prevProps: any, prevState: VideosState) {
+        if (this.props.current_video_id !== prevProps.current_video_id) {
+            this.setState(prevState => ({
+                should_flatlist_update: prevState.should_flatlist_update + 1
+            }))
+        }
     }
 
     render() {
@@ -47,11 +49,13 @@ export default class Videos extends React.PureComponent<any, any> {
             >
                 <FlatList
                     data={this.props.channels[this.props.current_channel].playlist}
+                    extraData={this.state.should_flatlist_update}
                     keyExtractor={this._keyExtractor}
                     renderItem={this._renderItem}
+                    windowSize={3}
+                    initialNumToRender={3}
+                    maxToRenderPerBatch={3}
                 />
-
-                {/* {this.state.video_array} */}
             </View>
         )
     }
@@ -59,31 +63,36 @@ export default class Videos extends React.PureComponent<any, any> {
 
 interface VideoProps {
     videoId: string,
-    index: number
+    index: number,
+    video_data: any,
+    current_video_id: string,
+    updateCurrentVideoId: (s: string) => any
 }
 
 interface VideoState {
-    status: boolean,
+    status: string,
     thumbnail: string,
     video_snippet: any
 }
 
 class Video extends React.PureComponent<VideoProps, VideoState> {
 
+    youtube_ref: any = React.createRef()
+    mounted = false
+
     state: VideoState = {
-        status: false,
+        status: "stopped",
         thumbnail: "",
         video_snippet: {}
     }
-
-    _onChangeState = (e: any) => {
-
+    _onChangeState = (e: any, t: any) => {
+        this.setState({
+            status: e.status
+        })
     }
 
-    _getVideoThumbnail = (videoId: string) => {
-        this.setState({
-            thumbnail: `https://img.youtube.com/vi/${videoId}/0.jpg`
-        })
+    _returnCurrentTimeOfPlayedVideo = () => {
+        return this.youtube_ref.current.getCurrentTime()
     }
 
     _checkIfThumbNailUriValid = (uri: string) => {
@@ -127,21 +136,33 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
             }
         })
             .then((res) => {
-                let snippet = { ...res.data.items[0].snippet }
+                if (this.mounted) {
+                    let snippet = { ...res.data.items[0].snippet }
 
-                let thumbnail_uri: string = this._returnHighestThumbnailRes(snippet.thumbnails)
+                    let thumbnail_uri: string = this._returnHighestThumbnailRes(snippet.thumbnails)
 
-                this.setState({
-                    thumbnail: thumbnail_uri,
-                    video_snippet: snippet
-                })
+
+                    this.setState({
+                        thumbnail: thumbnail_uri,
+                        video_snippet: snippet
+                    })
+                }
             })
             .catch(err => {
             })
     }
 
+    _onPressImage = () => {
+        this.props.updateCurrentVideoId(this.props.videoId)
+    }
+
     componentDidMount() {
+        this.mounted = true
         this._getVideoInfo(this.props.videoId)
+    }
+
+    componentWillUnmount() {
+        this.mounted = false
     }
 
     render() {
@@ -150,29 +171,39 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                 marginVertical: 20,
                 marginHorizontal: 22,
             }}>
-                {/* <Youtube
-                    apiKey={GOOGLE_API_KEY_YOUTUBE}
+                <TouchableOpacity
                     style={{
-                        width: window_width - 22 * 2,
-                        height: 300
+                        position: "relative"
                     }}
-                    videoId={this.props.videoId}
-                /> */}
 
-                <TouchableOpacity>
+                    onPress={this._onPressImage}
+                >
+                    {this.props.videoId === this.props.current_video_id ?
+                        <Youtube
+                            style={{
+                                flex: 1,
+                                height: 300,
+                            }}
+                            apiKey={GOOGLE_API_KEY_YOUTUBE}
+                            videoId={this.props.videoId}
+                            onChangeState={this._onChangeState}
+                            ref={this.youtube_ref}
+                        />
 
-                    {this.state.thumbnail.length > 0 &&
-                        (
-                            <Image
-                                source={{ uri: this.state.thumbnail }}
-                                style={{
-                                    flex: 1,
-                                    height: 300
-                                }}
-                            />
-                        )
+                        :
+
+                        <>
+                            {this.state.thumbnail.length > 0 && (
+                                <Image
+                                    source={{ uri: this.state.thumbnail }}
+                                    style={{
+                                        flex: 1,
+                                        height: 300
+                                    }}
+                                />
+                            )}
+                        </>
                     }
-
                 </TouchableOpacity>
 
                 <View
