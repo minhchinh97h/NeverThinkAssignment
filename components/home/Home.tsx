@@ -1,8 +1,7 @@
 import React from "react";
 import { SafeAreaView, View, Text, FlatList } from "react-native";
 import Channels from "./channels/Channels.Container";
-
-import style from "./style"
+import Videos from "./videos/Videos.Container"
 
 interface DataItem {
     id: string
@@ -33,7 +32,7 @@ export default class Home extends React.PureComponent {
             )
         } else if (item.id === "videos") {
             return (
-                <></>
+                <Videos />
             )
         }
     }
@@ -47,7 +46,6 @@ export default class Home extends React.PureComponent {
             <View
                 style={{
                     flex: 1,
-                    backgroundColor: "white"
                 }}
             >
                 <FlatList
