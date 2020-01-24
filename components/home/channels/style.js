@@ -6,7 +6,6 @@ export default style = StyleSheet.create({
     borderBottomColor: colors.primary,
     flexDirection: 'row',
     backgroundColor: colors.primary,
-    flex: 1,
   },
 
   channels_flatlist_container: {
@@ -41,6 +40,6 @@ export default style = StyleSheet.create({
     fontSize: 14,
     lineHeight: 17,
     letterSpacing: -0.02,
-    color: "white",
+    color: 'white',
   },
 });

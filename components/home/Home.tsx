@@ -48,11 +48,9 @@ export default class Home extends React.PureComponent {
                     flex: 1,
                 }}
             >
-                <FlatList
-                    data={this.state.data}
-                    keyExtractor={this._keyExtractor}
-                    renderItem={this._renderItem}
-                />
+                <Channels />
+
+                <Videos />
             </View>
         )
     }
