@@ -8,7 +8,7 @@ const mapStateToProps = (state: rootReducerInterface) => ({
   current_channel: state.current_channel,
 });
 
-const mapDispatchToProps = (dispatch: any) => ({
+const mapDispatchToProps: (d: any) => any = (dispatch: any) => ({
   updateCurrentChannel: (current_channel: number) =>
     dispatch(updateCurrentChannel(current_channel)),
 });

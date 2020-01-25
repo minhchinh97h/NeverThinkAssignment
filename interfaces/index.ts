@@ -13,7 +13,17 @@ export interface rootReducerInterface {
 }
 
 export interface VideoHistoryInterface {
-  id: string
-  current_video_time: number
-  seen: boolean
+  id: string;
+  current_video_time: number;
+  seen: boolean;
+}
+
+export interface Action_updateCurrentChannel {
+  type: 'UPDATE_CURRENT_CHANNEL';
+  current_channel: number;
+}
+
+export interface Action_updateCurrentVideoId {
+  type: 'UPDATE_CURRENT_VIDEO_ID';
+  current_video_id: string;
 }

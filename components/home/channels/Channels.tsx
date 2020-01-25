@@ -1,14 +1,20 @@
 import React from "react";
 import { View, Text, Image, FlatList, TouchableOpacity } from "react-native";
 import style from "./style";
-import { ChannelInterface } from "../../../interfaces"
+import { ChannelInterface, Action_updateCurrentChannel } from "../../../interfaces"
 
 interface ChannelsState {
     current_index: number,
     last_index: number
 }
 
-export default class Channels extends React.PureComponent<any, ChannelsState> {
+interface ChannelsProps {
+    channels: Array<ChannelInterface>,
+    current_channel: number,
+    updateCurrentChannel: (n: number) => Action_updateCurrentChannel
+}
+
+export default class Channels extends React.PureComponent<ChannelsProps, ChannelsState> {
 
     state: ChannelsState = {
         current_index: 0,
@@ -60,7 +66,7 @@ export default class Channels extends React.PureComponent<any, ChannelsState> {
 interface ChannelProps {
     index: number,
     data: ChannelInterface,
-    updateCurrentChannel: (n: number) => any
+    updateCurrentChannel: (n: number) => Action_updateCurrentChannel
 }
 
 interface ChannelState {

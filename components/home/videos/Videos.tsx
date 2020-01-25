@@ -1,14 +1,14 @@
 import React, { RefObject } from "react"
-import { View, FlatList, Text, Dimensions, Image, TouchableOpacity } from "react-native"
+import { View, FlatList, Text, Dimensions, Image, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from "react-native"
 import { GOOGLE_API_KEY_YOUTUBE } from "../../../config/index"
-import { ChannelInterface } from "../../../interfaces"
+import { ChannelInterface, VideoHistoryInterface, Action_updateCurrentVideoId } from "../../../interfaces"
 import style from "./style"
 import Youtube from "react-native-youtube"
 import axios from "axios"
 
 const window_width: number = Dimensions.get("window").width
 
-const youtube_instance_height: number = 300
+const youtube_instance_height: number = 301
 const video_component_margin_vertical: number = 20
 const video_component_total_height: number = youtube_instance_height + video_component_margin_vertical * 2
 
@@ -19,7 +19,15 @@ interface VideosState {
     last_video_index: number
 }
 
-export default class Videos extends React.PureComponent<any, VideosState> {
+interface VideosProps {
+    channels: Array<ChannelInterface>,
+    current_channel: number,
+    current_video_id: string,
+    video_history: Array<VideoHistoryInterface>,
+    updateCurrentVideoId: (s: string) => Action_updateCurrentVideoId
+}
+
+export default class Videos extends React.PureComponent<VideosProps, VideosState> {
 
     flatlist_ref: any = React.createRef()
 
@@ -48,6 +56,20 @@ export default class Videos extends React.PureComponent<any, VideosState> {
         index
     })
 
+    _onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        let current_video_index = Math.floor(
+            e.nativeEvent.contentOffset.y / video_component_total_height
+        )
+
+        if (current_video_index < 0) {
+            current_video_index = 0
+        }
+
+        this.setState({
+            current_video_index
+        })
+    }
+
     _keyExtractor = (item: string, index: number) => `videos-section-playlist-videoid-${item}-index-${index}`
 
     _renderItem: any = ({ item, index }: { item: string, index: number }) => (
@@ -56,13 +78,15 @@ export default class Videos extends React.PureComponent<any, VideosState> {
             index={index}
 
             video_history={this.props.video_history}
-            video_info={this.props.video_data.item}
+            // video_info={this.props.video_history.item}
             current_video_id={this.props.current_video_id}
             updateCurrentVideoId={this.props.updateCurrentVideoId}
 
             _scrollToVideo={this._scrollToVideo}
 
             playlist={this.props.channels[this.props.current_channel].playlist}
+
+            current_video_index={this.state.current_video_index}
         />
     )
 
@@ -83,6 +107,12 @@ export default class Videos extends React.PureComponent<any, VideosState> {
                 this._scrollToVideo(0)
             })
         }
+
+        if (this.state.current_video_index !== prevState.current_video_index) {
+            this.setState(prevState => ({
+                should_flatlist_update: prevState.should_flatlist_update + 1,
+            }))
+        }
     }
 
     render() {
@@ -102,6 +132,11 @@ export default class Videos extends React.PureComponent<any, VideosState> {
                     getItemLayout={this._getItemLayout}
                     ref={this.flatlist_ref}
                     initialScrollIndex={0}
+                    decelerationRate={0}
+                    snapToAlignment="center"
+                    snapToInterval={video_component_total_height}
+                    onScroll={this._onScroll}
+                    scrollEventThrottle={3}
                 />
             </View>
         )
@@ -113,11 +148,12 @@ interface VideoProps {
     videoId: string,
     index: number,
     video_history: any,
-    video_info: any,
+    // video_info: any,
     current_video_id: string,
-    updateCurrentVideoId: (s: string) => any,
+    updateCurrentVideoId: (s: string) => Action_updateCurrentVideoId,
     _scrollToVideo: (i: number) => void,
-    playlist: string[]
+    playlist: string[],
+    current_video_index: number
 }
 
 // Interface for component Video's state
@@ -194,13 +230,13 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         // Find the current video index based on the video's id in the channel's playlist.
         // No need for additional data structure for better performance since a playlist can contain up to a reasonal limit of videos
         // which is normally small (considering max 5000 videos, meaning 5000 items in array)
-        let current_video_index = playlist.findIndex((video_id: string) => {
+        let current_video_index_in_channel_playlist = playlist.findIndex((video_id: string) => {
             return video_id === videoId
         })
 
         // If the ended video is not the last one in the playlist, we proceed to next video
-        if (current_video_index < (playlist_length - 1)) {
-            let next_video_index_in_channel_playlist: number = current_video_index + 1
+        if (current_video_index_in_channel_playlist < (playlist_length - 1)) {
+            let next_video_index_in_channel_playlist: number = current_video_index_in_channel_playlist + 1
 
             // To be able to mount the next video's Youtube Instance, we need to update the current_video_id prop.
             // Lets find its video id first then update through Redux action later.
@@ -243,6 +279,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
     // Event of Youtube Instance <Youtube />
     _onError = (e: any) => {
         // HANDLE ERRORS
+        console.log(e)
     }
 
     // Get the current time of the Youtube instance when called (this is a promise)
@@ -349,18 +386,25 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         this._getVideoInfo(this.props.videoId)
     }
 
+    // componentDidUpdate(prevProps: VideoProps, prevState: VideoState) {
+    //     if (this.props.current_video_index !== prevProps.current_video_index) {
+    //         if (this.props.current_video_index !== this.props.index) {
+
+    //         }
+    //     }
+    // }
+
     componentWillUnmount() {
         this.mounted = false
-
-        // When using Flatlist, Video components will be unmounted when its view is outside the main screen view.
-        // This will also raise an error called "UNAUTHORIZED_OVERLAY" in Android since Android's Youtube API doesn't 
-        // support overlay or small rendering.
-        // Normally when the error is raised, the video will stop but the stopping procedure doesn't proceed quickly enough
-        // so we will stop the Youtube instance manually by adding this below function.
-        this._stopYoutubeInstance()
     }
 
     render() {
+        let should_render_youtube_instance = false
+
+        if (this.props.current_video_index === this.props.index && this.props.videoId === this.props.current_video_id) {
+            should_render_youtube_instance = true
+        }
+
         return (
             <View style={{
                 marginVertical: video_component_margin_vertical,
@@ -370,7 +414,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                 {/* Only mount the Youtube instance if the current video id (which is pressed on image) is the same
                     as the video id of Video component. By this way, we ensure there is only 1 Youtube Instance at a time
                     in Android */}
-                {this.props.videoId === this.props.current_video_id ?
+                {should_render_youtube_instance ?
                     < Youtube
                         style={{
                             flex: 1,
