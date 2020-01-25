@@ -10,7 +10,7 @@ interface ChannelsState {
 
 interface ChannelsProps {
     channels: Array<ChannelInterface>,
-    current_channel: number,
+    current_channel_index: number,
     updateCurrentChannel: (n: number) => Action_updateCurrentChannel
 }
 

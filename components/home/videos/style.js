@@ -5,5 +5,6 @@ export default style = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.secondary,
+    overflow: "hidden",
   },
 });

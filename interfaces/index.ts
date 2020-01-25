@@ -7,7 +7,7 @@ export interface ChannelInterface {
 
 export interface rootReducerInterface {
   channels: Array<ChannelInterface>;
-  current_channel: string;
+  current_channel_index: number;
   video_history: any;
   current_video_id: string;
 }
@@ -19,11 +19,16 @@ export interface VideoHistoryInterface {
 }
 
 export interface Action_updateCurrentChannel {
-  type: 'UPDATE_CURRENT_CHANNEL';
-  current_channel: number;
+  type: 'UPDATE_CURRENT_CHANNEL_INDEX';
+  current_channel_index: number;
 }
 
 export interface Action_updateCurrentVideoId {
   type: 'UPDATE_CURRENT_VIDEO_ID';
   current_video_id: string;
+}
+
+export interface Action_updateVideoHistory {
+  type: 'UPDATE_VIDEO_HISTORY';
+  video_history: VideoHistoryInterface;
 }

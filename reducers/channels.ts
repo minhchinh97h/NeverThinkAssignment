@@ -1,4 +1,4 @@
-import {ChannelInterface} from '../interfaces';
+import {ChannelInterface, Action_updateCurrentChannel} from '../interfaces';
 
 let initial_channels: Array<ChannelInterface> = [
   {
@@ -51,10 +51,13 @@ export const channels = (state = initial_channels, action: any) => {
 };
 
 // Initially when the app starts, current_channel will be at 0 (zero-based) index of channels array.
-export const current_channel = (state = 0, action: any) => {
+export const current_channel_index = (
+  state = 0,
+  action: Action_updateCurrentChannel,
+) => {
   switch (action.type) {
-    case 'UPDATE_CURRENT_CHANNEL':
-      return action.current_channel;
+    case 'UPDATE_CURRENT_CHANNEL_INDEX':
+      return action.current_channel_index;
 
     default:
       return state;

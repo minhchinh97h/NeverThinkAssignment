@@ -6,6 +6,7 @@ export default style = StyleSheet.create({
     borderBottomColor: colors.primary,
     flexDirection: 'row',
     backgroundColor: colors.primary,
+    height: 120,
   },
 
   channels_flatlist_container: {

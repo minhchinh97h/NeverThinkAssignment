@@ -1,14 +1,15 @@
-import React, { RefObject } from "react"
+import React from "react"
 import { View, FlatList, Text, Dimensions, Image, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from "react-native"
 import { GOOGLE_API_KEY_YOUTUBE } from "../../../config/index"
-import { ChannelInterface, VideoHistoryInterface, Action_updateCurrentVideoId } from "../../../interfaces"
+import { ChannelInterface, VideoHistoryInterface, Action_updateCurrentVideoId, Action_updateVideoHistory } from "../../../interfaces"
 import style from "./style"
 import Youtube from "react-native-youtube"
 import axios from "axios"
 
 const window_width: number = Dimensions.get("window").width
+const window_height: number = Dimensions.get("window").height
 
-const youtube_instance_height: number = 301
+const youtube_instance_height: number = (window_height - 120) * 0.8
 const video_component_margin_vertical: number = 20
 const video_component_total_height: number = youtube_instance_height + video_component_margin_vertical * 2
 
@@ -21,10 +22,11 @@ interface VideosState {
 
 interface VideosProps {
     channels: Array<ChannelInterface>,
-    current_channel: number,
+    current_channel_index: number,
     current_video_id: string,
     video_history: Array<VideoHistoryInterface>,
-    updateCurrentVideoId: (s: string) => Action_updateCurrentVideoId
+    updateCurrentVideoId: (s: string) => Action_updateCurrentVideoId,
+    updateVideoHistory: (v: VideoHistoryInterface) => Action_updateVideoHistory
 }
 
 export default class Videos extends React.PureComponent<VideosProps, VideosState> {
@@ -33,7 +35,7 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
 
     state: VideosState = {
         should_flatlist_update: 0, // Counting flag to update Flatlist when necessary
-        current_video_index: 0, // Currently chosen video index in chosen channel's playlist.
+        current_video_index: -1, // Currently chosen video index in chosen channel's playlist.
         // Use this to help scrolling to the clicked video.
         // It will be set to 0 (first video) when choosing a new channel.
         last_video_index: -1
@@ -56,18 +58,19 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         index
     })
 
-    _onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        let current_video_index = Math.floor(
-            e.nativeEvent.contentOffset.y / video_component_total_height
-        )
-
-        if (current_video_index < 0) {
-            current_video_index = 0
+    // Currently the App will crash when we create a Youtube Instance, scroll down from it, and then scroll back to it (this phase will crash the
+    // app). To fix this bug, we determine the currently focused video by this below function so when a video is out of the main screen (will unmount),
+    // we will delete its Youtube Instance since before the component unmounts completely, it will re-render at least one more time. Plus, the focused
+    // video will be played like Facebook's Watch Video feature.
+    // Since a video will take a big space, it will be easier for React Native to calculate the unmount/mount area so we will not likely 
+    // encounter crashes or error "The Youtube Instance has been released" =>  consider this is a hack without using the prop resumePlayAndroid on 
+    // <Youtube /> since the video will have black screen and be unable to play/pause anymore.
+    _onViewableItemsChanged = ({ viewableItems }: any) => {
+        if (viewableItems[0]) {
+            this.setState({
+                current_video_index: viewableItems[0].index
+            })
         }
-
-        this.setState({
-            current_video_index
-        })
     }
 
     _keyExtractor = (item: string, index: number) => `videos-section-playlist-videoid-${item}-index-${index}`
@@ -78,15 +81,16 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
             index={index}
 
             video_history={this.props.video_history}
-            // video_info={this.props.video_history.item}
             current_video_id={this.props.current_video_id}
             updateCurrentVideoId={this.props.updateCurrentVideoId}
 
             _scrollToVideo={this._scrollToVideo}
 
-            playlist={this.props.channels[this.props.current_channel].playlist}
+            playlist={this.props.channels[this.props.current_channel_index].playlist}
 
             current_video_index={this.state.current_video_index}
+
+            updateVideoHistory={this.props.updateVideoHistory}
         />
     )
 
@@ -100,7 +104,7 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         }
 
         // When changing the channel, the first video of the channel's playlist will be focused.
-        if (this.props.current_channel !== prevProps.current_channel) {
+        if (this.props.current_channel_index !== prevProps.current_channel_index) {
             this.setState(prevState => ({
                 should_flatlist_update: prevState.should_flatlist_update + 1,
             }), () => {
@@ -108,6 +112,7 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
             })
         }
 
+        // Update Flatlist when the currently focused video is changed.
         if (this.state.current_video_index !== prevState.current_video_index) {
             this.setState(prevState => ({
                 should_flatlist_update: prevState.should_flatlist_update + 1,
@@ -121,22 +126,24 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
                 style={style.container}
             >
                 <FlatList
-                    data={this.props.channels[this.props.current_channel].playlist} // the playlist of each currently used channel is the Flatlist's data.
+                    data={this.props.channels[this.props.current_channel_index].playlist} // the playlist of each currently used channel is the Flatlist's data.
                     // Using this syntax for re-rendering whenever users change channel.
                     extraData={this.state.should_flatlist_update}
                     keyExtractor={this._keyExtractor}
                     renderItem={this._renderItem}
-                    windowSize={3}
-                    initialNumToRender={3}
-                    maxToRenderPerBatch={3}
+                    windowSize={7}
+                    initialNumToRender={7}
+                    maxToRenderPerBatch={7}
                     getItemLayout={this._getItemLayout}
                     ref={this.flatlist_ref}
                     initialScrollIndex={0}
-                    decelerationRate={0}
+                    // decelerationRate={0.1998}
                     snapToAlignment="center"
-                    snapToInterval={video_component_total_height}
-                    onScroll={this._onScroll}
-                    scrollEventThrottle={3}
+                    // snapToInterval={video_component_total_height}
+                    viewabilityConfig={{
+                        viewAreaCoveragePercentThreshold: 80 // Ensure only one video at a time
+                    }}
+                    onViewableItemsChanged={this._onViewableItemsChanged}
                 />
             </View>
         )
@@ -147,13 +154,14 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
 interface VideoProps {
     videoId: string,
     index: number,
-    video_history: any,
+    video_history: Array<VideoHistoryInterface>,
     // video_info: any,
     current_video_id: string,
     updateCurrentVideoId: (s: string) => Action_updateCurrentVideoId,
     _scrollToVideo: (i: number) => void,
     playlist: string[],
-    current_video_index: number
+    current_video_index: number,
+    updateVideoHistory: (v: VideoHistoryInterface) => Action_updateVideoHistory
 }
 
 // Interface for component Video's state
@@ -162,13 +170,16 @@ interface VideoState {
     thumbnail: string,
     video_snippet: any,
     should_play_youtube_instance: boolean,
-    quality: any,
 }
 
 class Video extends React.PureComponent<VideoProps, VideoState> {
 
     // Reference of Youtube instance to use react-native-youtube's methods
     youtube_ref: any = React.createRef()
+
+    // This percentage determines the condition that allow a video to be marked as seen.
+    // If video's current time/ video's duration >= 0.7 then it is seen.
+    seen_min_percentage = 0.5
 
     // Used to get rid of memory leak warning when fetching promises while the component is unmounted
     mounted = false
@@ -179,8 +190,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         // since react-native-youtube for Android is singleton.
         video_snippet: {}, // Hold the video's information such as title, description, thumbnails, etc
         // via axios call to mimic multiple Youtube players in Android.
-        should_play_youtube_instance: false, // Controll the play/pause function of Youtube instance.
-        quality: "" // Capture the quality of the Youtube instance (currently unused).
+        should_play_youtube_instance: true, // Controll the play/pause function of Youtube instance.
     }
 
     // Event of Youtube Instance <Youtube /> to capture the instance's state
@@ -205,16 +215,41 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                 // At the first stage (video initialization), both current_video_time and video_duration are equal to 0.
                 if (current_video_time === video_duration && current_video_time > 0) {
                     this._playNextVideoInPlaylist()
+
+
+                    // Record video into history.
+                    // Only add video into history when the video stopped at phase 2 (ended) and we reset parameters to 0
+                    // so later when users want to see the video again, it will start from 0 second.
+                    this._recordVideoHistory(0, 0)
                 }
             }
 
             catch (err) {
-                // HANDLER ERROR
+                this._recordVideoHistory(0, 0)
             }
+
         }
         // Video is playing
         else if (state === "playing") {
 
+        }
+        // Video paused.
+        // We will record the video's playing data such as its id, current paused time, is the playing time is long enough
+        // to consider a seen video
+        else if (state === "paused") {
+            try {
+                let current_video_time: number = await this._returnCurrentTimeOfPlayedVideo()
+                let video_duration: number = await this._returnDurationOfPlayedVideo()
+
+                // Record video into history
+                this._recordVideoHistory(current_video_time, video_duration)
+            }
+
+            catch (err) {
+                // When video's current time or video's duration is undefined
+                // Record video into history
+                this._recordVideoHistory(0, 0)
+            }
         }
         // Video starts. 
         else if (state === "started") {
@@ -261,13 +296,31 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         }
     }
 
-    // Event of Youtube Instance <Youtube /> to capture its quality
-    _onChangeQuality = (e: any) => {
-        this._stopYoutubeInstance()
+    // We add the video's record into Redux's store video_history array.
+    _recordVideoHistory = (current_video_time: number, video_duration: number) => {
+        let sending_obj: VideoHistoryInterface = {
+            id: this.props.videoId,
+            current_video_time,
+            seen: false
+        }
 
-        this.setState({
-            quality: e.quality
-        })
+        // We checked if the video is previously seen
+        let index = this.props.video_history.findIndex((history: VideoHistoryInterface) => history.id === this.props.videoId)
+
+        let have_seen_before: boolean = this.props.video_history[index] ? this.props.video_history[index].seen : false
+
+        // If it is, we don't change its "seen" flag
+        if (have_seen_before) {
+            sending_obj.seen = true
+        }
+        // If it is not, we consider the case when users reach the video's currently playing time allowed for "seen"
+        else {
+            if (current_video_time > 0 && video_duration > 0 && current_video_time / video_duration >= this.seen_min_percentage) {
+                sending_obj.seen = true
+            }
+        }
+
+        this.props.updateVideoHistory(sending_obj)
     }
 
     // Event of Youtube Instance <Youtube />
@@ -279,7 +332,6 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
     // Event of Youtube Instance <Youtube />
     _onError = (e: any) => {
         // HANDLE ERRORS
-        console.log(e)
     }
 
     // Get the current time of the Youtube instance when called (this is a promise)
@@ -294,17 +346,17 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
 
     // Play the Youtube Instance
     _playYoutubeInstance = () => {
-        this.youtube_ref.current.seekTo(0)
+        // We play/resume the Youtube Instance based on its record in video history (current video time)
+        let index = this.props.video_history.findIndex((history: VideoHistoryInterface) => history.id === this.props.videoId)
+
+        if (index > -1) {
+            this.youtube_ref.current.seekTo(this.props.video_history[index].current_video_time)
+        } else {
+            this.youtube_ref.current.seekTo(0)
+        }
 
         this.setState({
             should_play_youtube_instance: true
-        })
-    }
-
-    // Stop the Youtube Instance
-    _stopYoutubeInstance = () => {
-        this.setState({
-            should_play_youtube_instance: false
         })
     }
 
@@ -377,8 +429,6 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
     // activate Youtube Instance.
     _onPressImage = () => {
         this.props.updateCurrentVideoId(this.props.videoId)
-
-        this.props._scrollToVideo(this.props.index)
     }
 
     componentDidMount() {
@@ -386,34 +436,35 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         this._getVideoInfo(this.props.videoId)
     }
 
-    // componentDidUpdate(prevProps: VideoProps, prevState: VideoState) {
-    //     if (this.props.current_video_index !== prevProps.current_video_index) {
-    //         if (this.props.current_video_index !== this.props.index) {
-
-    //         }
-    //     }
-    // }
+    // When the video is focused (scrolled to), we update its video id as the current one to be able to mount Youtube Instance
+    componentDidUpdate(prevProps: VideoProps, prevState: VideoState) {
+        if (this.props.current_video_index !== prevProps.current_video_index) {
+            if (this.props.current_video_index === this.props.index) {
+                this.props.updateCurrentVideoId(this.props.videoId)
+            }
+        }
+    }
 
     componentWillUnmount() {
         this.mounted = false
     }
 
     render() {
+        // Flag is used to determine whether to mount the Youtube Instance
         let should_render_youtube_instance = false
 
+        // Only mount Youtube Instance when the video's id === the current video id from Redux store and the video is focused,
+        // which means the video's index === the current video index prop
         if (this.props.current_video_index === this.props.index && this.props.videoId === this.props.current_video_id) {
             should_render_youtube_instance = true
         }
 
         return (
             <View style={{
-                marginVertical: video_component_margin_vertical,
                 marginHorizontal: 22,
+                marginVertical: video_component_margin_vertical
             }}>
 
-                {/* Only mount the Youtube instance if the current video id (which is pressed on image) is the same
-                    as the video id of Video component. By this way, we ensure there is only 1 Youtube Instance at a time
-                    in Android */}
                 {should_render_youtube_instance ?
                     < Youtube
                         style={{
@@ -423,10 +474,10 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                         apiKey={GOOGLE_API_KEY_YOUTUBE}
                         videoId={this.props.videoId}
                         onChangeState={this._onChangeState}
-                        onChangeQuality={this._onChangeQuality}
                         ref={this.youtube_ref}
                         onReady={this._onReady}
                         onError={this._onError}
+                        // play={true}
                         play={this.state.should_play_youtube_instance}
                     />
 
