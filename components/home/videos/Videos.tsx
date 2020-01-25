@@ -137,11 +137,11 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
                     getItemLayout={this._getItemLayout}
                     ref={this.flatlist_ref}
                     initialScrollIndex={0}
-                    // decelerationRate={0.1998}
+                    decelerationRate={0.8}
                     snapToAlignment="center"
-                    // snapToInterval={video_component_total_height}
+                    snapToInterval={video_component_total_height}
                     viewabilityConfig={{
-                        viewAreaCoveragePercentThreshold: 80 // Ensure only one video at a time
+                        viewAreaCoveragePercentThreshold: 70 // Ensure only one video at a time
                     }}
                     onViewableItemsChanged={this._onViewableItemsChanged}
                 />
@@ -429,6 +429,9 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
     // activate Youtube Instance.
     _onPressImage = () => {
         this.props.updateCurrentVideoId(this.props.videoId)
+
+        // Scroll to the video first to avoid UNAUTHORIZED_OVERLAY
+        this.props._scrollToVideo(this.props.index)
     }
 
     componentDidMount() {
@@ -440,7 +443,19 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
     componentDidUpdate(prevProps: VideoProps, prevState: VideoState) {
         if (this.props.current_video_index !== prevProps.current_video_index) {
             if (this.props.current_video_index === this.props.index) {
-                this.props.updateCurrentVideoId(this.props.videoId)
+
+                // Because the Youtube Instance can only mount when satisfying 2 conditions: 
+                // 1. current video index in channel's play list === video's index (when video is focused/within the view area)
+                // 2. current video id from Redux's store === video's id (current video id is used to keep track of current video 
+                // with Youtube Instance mounted)
+                // To avoid "UNAUTHORIZED_OVERLAY" error, which will make Youtube Instance stops right after clicking on Play button, 
+                // We wait 150ms to make sure the video is in the right view area (condition 1 verified), then we update the Redux's store
+                // with video's id (condition 2 verified). This approach can also minimize the chance of encountering the error "The Youtube
+                // Instance has released", which means there are too many loading Youtube Instance at the same time (since Android only allow one Instance
+                // at a time).
+                setTimeout(() => {
+                    this.props.updateCurrentVideoId(this.props.videoId)
+                }, 150)
             }
         }
     }
@@ -477,7 +492,6 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                         ref={this.youtube_ref}
                         onReady={this._onReady}
                         onError={this._onError}
-                        // play={true}
                         play={this.state.should_play_youtube_instance}
                     />
 
