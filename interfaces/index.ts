@@ -8,7 +8,12 @@ export interface ChannelInterface {
 export interface rootReducerInterface {
   channels: Array<ChannelInterface>;
   current_channel: string;
-  video_data: any;
+  video_history: any;
   current_video_id: string;
-  current_video_index_in_channel_playlist: number;
+}
+
+export interface VideoHistoryInterface {
+  id: string
+  current_video_time: number
+  seen: boolean
 }

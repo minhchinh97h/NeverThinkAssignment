@@ -55,14 +55,12 @@ export default class Videos extends React.PureComponent<any, VideosState> {
             videoId={item}
             index={index}
 
-            video_data={this.props.video_data}
+            video_history={this.props.video_history}
             video_info={this.props.video_data.item}
             current_video_id={this.props.current_video_id}
             updateCurrentVideoId={this.props.updateCurrentVideoId}
 
             _scrollToVideo={this._scrollToVideo}
-            updateCurrentVideoIndexInChannelPlaylist={this.props.updateCurrentVideoIndexInChannelPlaylist}
-            current_video_index_in_channel_playlist={this.props.current_video_index_in_channel_playlist}
 
             playlist={this.props.channels[this.props.current_channel].playlist}
         />
@@ -114,13 +112,11 @@ export default class Videos extends React.PureComponent<any, VideosState> {
 interface VideoProps {
     videoId: string,
     index: number,
-    video_data: any,
+    video_history: any,
     video_info: any,
     current_video_id: string,
     updateCurrentVideoId: (s: string) => any,
     _scrollToVideo: (i: number) => void,
-    updateCurrentVideoIndexInChannelPlaylist: (n: number) => any,
-    current_video_index_in_channel_playlist: number,
     playlist: string[]
 }
 
@@ -161,9 +157,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         let { state } = e
 
         // Video ends.
-        // When Youtube Instance ended, we play the next video based on the current_video_index_in_channel_playlist prop.
-        // If it = playlist.length -1 (last index), we play the first.
-        // Else we play the next video.
+        // When Youtube Instance ended, we play the next video.
         if (state === "stopped") {
             // There are 2 "stopped" state, one for the initialization and one for the ending of the video.
             // We need the latter one so we can compare the video's current playing time with its own duration
@@ -188,19 +182,19 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         }
         // Video starts. 
         else if (state === "started") {
-            // When Youtube Instance started, we update its index in the current channel's playlist to
-            // keep track of playing the next video.
-            // this.props.updateCurrentVideoIndexInChannelPlaylist(this.props.index)
         }
     }
 
     // Function is invoked when the Youtube Instance ended to play the next video in the current channel's playlist
     _playNextVideoInPlaylist = () => {
         let { playlist, videoId } = this.props
-        //Retrieve playlist's length
+        // Retrieve playlist's length
         let playlist_length: number = playlist.length
 
-        let current_video_index = playlist.findIndex((video_id: string, index: number) => {
+        // Find the current video index based on the video's id in the channel's playlist.
+        // No need for additional data structure for better performance since a playlist can contain up to a reasonal limit of videos
+        // which is normally small (considering max 5000 videos, meaning 5000 items in array)
+        let current_video_index = playlist.findIndex((video_id: string) => {
             return video_id === videoId
         })
 
@@ -217,9 +211,6 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
 
             // Update current_video_id
             this.props.updateCurrentVideoId(next_video_id)
-
-            // Update current_video_index_in_channel_playlist to keep track of onplaying video
-            // this.props.updateCurrentVideoIndexInChannelPlaylist(next_video_index_in_channel_playlist)
         }
 
         // If the ended video is the last one in the playlist, we proceed to the first video.
@@ -255,12 +246,12 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
     }
 
     // Get the current time of the Youtube instance when called (this is a promise)
-    _returnCurrentTimeOfPlayedVideo = () => {
+    _returnCurrentTimeOfPlayedVideo: () => number = () => {
         return this.youtube_ref.current.getCurrentTime()
     }
 
     // Get the duration of the Youtube instance when called (this is a promise)
-    _returnDurationOfPlayedVideo = () => {
+    _returnDurationOfPlayedVideo: () => number = () => {
         return this.youtube_ref.current.getDuration()
     }
 
