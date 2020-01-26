@@ -10,8 +10,9 @@ const window_width: number = Dimensions.get("window").width
 const window_height: number = Dimensions.get("window").height
 
 const youtube_instance_height: number = (window_height - 120) * 0.8
+const video_information_section_height: number = 50
 const video_component_margin_vertical: number = 20
-const video_component_total_height: number = youtube_instance_height + video_component_margin_vertical * 2
+const video_component_total_height: number = youtube_instance_height + video_component_margin_vertical * 2 + video_information_section_height
 
 // Interface for component Videos's state
 interface VideosState {
@@ -72,7 +73,7 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
             })
         }
     }
-
+    
     _keyExtractor = (item: string, index: number) => `videos-section-playlist-videoid-${item}-index-${index}`
 
     _renderItem: any = ({ item, index }: { item: string, index: number }) => (
@@ -137,8 +138,7 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
                     getItemLayout={this._getItemLayout}
                     ref={this.flatlist_ref}
                     initialScrollIndex={0}
-                    decelerationRate={0.8}
-                    snapToAlignment="center"
+                    decelerationRate={0.99}
                     snapToInterval={video_component_total_height}
                     viewabilityConfig={{
                         viewAreaCoveragePercentThreshold: 70 // Ensure only one video at a time
@@ -332,6 +332,9 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
     // Event of Youtube Instance <Youtube />
     _onError = (e: any) => {
         // HANDLE ERRORS
+        // We will encounter error "UNAUTHORIZED_LAYOUT" in Android. But it will be ignored due to current approach.
+        // Normally the error will cause the Youtube Instance to be stall/unable to use, but this approach will netigate those
+        // issues.
     }
 
     // Get the current time of the Youtube instance when called (this is a promise)
@@ -449,13 +452,13 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                 // 2. current video id from Redux's store === video's id (current video id is used to keep track of current video 
                 // with Youtube Instance mounted)
                 // To avoid "UNAUTHORIZED_OVERLAY" error, which will make Youtube Instance stops right after clicking on Play button, 
-                // We wait 150ms to make sure the video is in the right view area (condition 1 verified), then we update the Redux's store
+                // We wait 500ms to make sure the video is in the right view area (condition 1 verified), then we update the Redux's store
                 // with video's id (condition 2 verified). This approach can also minimize the chance of encountering the error "The Youtube
                 // Instance has released", which means there are too many loading Youtube Instance at the same time (since Android only allow one Instance
                 // at a time).
                 setTimeout(() => {
                     this.props.updateCurrentVideoId(this.props.videoId)
-                }, 150)
+                }, 500)
             }
         }
     }
@@ -477,7 +480,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         return (
             <View style={{
                 marginHorizontal: 22,
-                marginVertical: video_component_margin_vertical
+                marginVertical: video_component_margin_vertical,
             }}>
 
                 {should_render_youtube_instance ?
@@ -513,11 +516,12 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                     </TouchableOpacity>
                 }
 
-                {/* <View
+                <View
                     style={{
                         backgroundColor: "white",
                         paddingVertical: 12,
                         paddingHorizontal: 22,
+                        height: video_information_section_height,
                     }}
                 >
                     <View>
@@ -525,7 +529,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                             {this.state.video_snippet.title}
                         </Text>
                     </View>
-                </View> */}
+                </View>
             </View>
         )
     }
