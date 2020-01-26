@@ -71,14 +71,29 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         index
     })
 
-    _onScrollBeginDrag: (e: NativeSyntheticEvent<NativeScrollEvent>) => void = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        this.setState({
-            current_video_index: -1
-        })
-    }
-
     _onScroll: (e: NativeSyntheticEvent<NativeScrollEvent>) => void = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        let { current_video_index } = this.state
 
+        let flatlist_view_height = e.nativeEvent.layoutMeasurement.height
+
+        // Check if the current video component's area intersect with outside of the main viewarea
+        let y_top_offset = e.nativeEvent.contentOffset.y
+        let y_bottom_offset = y_top_offset + flatlist_view_height
+        let youtube_instance_y_top_offset = current_video_index * video_component_total_height + video_component_margin_vertical
+        let youtube_instance_y_bottom_offset = (current_video_index + 1) * video_component_total_height - video_component_margin_vertical
+
+        // meaning the Youtube Instance is scrolled up => outside main view
+        if (y_top_offset > youtube_instance_y_top_offset) {
+            this.setState({
+                current_video_index: -1
+            })
+        }
+        // meaning the Youtube Instance is scrolled down => outside main view
+        else if (y_bottom_offset < youtube_instance_y_bottom_offset) {
+            this.setState({
+                current_video_index: -1
+            })
+        }
     }
 
     _keyExtractor = (item: string, index: number) => `videos-section-playlist-videoid-${item}-index-${index}`
@@ -192,8 +207,7 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
                         ref={this.flatlist_ref}
                         initialScrollIndex={this.start_index}
                         viewabilityConfig={this._viewabilityConfig}
-                        onScrollBeginDrag={this._onScrollBeginDrag}
-                        scrollEventThrottle={7}
+                        scrollEventThrottle={1}
                         onScroll={this._onScroll}
                     />
                     :
