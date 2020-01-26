@@ -45,19 +45,6 @@ export default class Channels extends React.PureComponent<ChannelsProps, Channel
                         showsHorizontalScrollIndicator={false}
                     />
                 </View>
-
-                <TouchableOpacity
-                    style={style.channels_show_all_container}
-                    onPress={() => { }}
-                >
-                    <Text style={style.channels_show_all_text}>
-                        ALL
-                    </Text>
-
-                    <Text style={style.channels_show_all_text}>
-                        CHANNELS
-                    </Text>
-                </TouchableOpacity>
             </View>
         )
     }
@@ -97,8 +84,8 @@ class Channel extends React.PureComponent<ChannelProps, ChannelState> {
                     <Image
                         source={{ uri: this.props.data.icon }}
                         style={{
-                            width: 50,
-                            height: 50,
+                            width: 30,
+                            height: 30,
                         }}
                         resizeMode={"contain"}
                     />

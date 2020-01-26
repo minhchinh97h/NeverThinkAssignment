@@ -6,28 +6,11 @@ export default style = StyleSheet.create({
     borderBottomColor: colors.primary,
     flexDirection: 'row',
     backgroundColor: colors.primary,
-    height: 120,
   },
 
   channels_flatlist_container: {
     paddingVertical: 11,
     flex: 1,
-  },
-
-  channels_show_all_container: {
-    paddingHorizontal: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-  },
-
-  channels_show_all_text: {
-    fontSize: 16,
-    lineHeight: 19,
-    letterSpacing: -0.02,
-    color: colors.white,
-    textAlign: 'center',
-    textTransform: 'uppercase',
   },
 
   channel_container: {
