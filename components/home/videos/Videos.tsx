@@ -9,10 +9,13 @@ import axios from "axios"
 const window_width: number = Dimensions.get("window").width
 const window_height: number = Dimensions.get("window").height
 
-const youtube_instance_height: number = (window_height - 120) * 0.8
+const youtube_instance_height: number = 301
 const video_information_section_height: number = 50
 const video_component_margin_vertical: number = 20
-const video_component_total_height: number = youtube_instance_height + video_component_margin_vertical * 2 + video_information_section_height
+const video_component_total_height: number = youtube_instance_height + video_component_margin_vertical * 2 + video_information_section_height // This variable
+// plays an important role in helping the app avoiding the bad effects of "UNAUTHORIZED_OVERLAY" and "The Youtube Instance has released" since it
+// makes only 1 video in the view area so only that video will mount the Youtube Instance. Thus, the height of the Youtube Instance is important due to
+// the reason that if its is low, then the Youtube Instance will take less time to unmount when scrolling.
 
 // Interface for component Videos's state
 interface VideosState {
@@ -33,6 +36,10 @@ interface VideosProps {
 export default class Videos extends React.PureComponent<VideosProps, VideosState> {
 
     flatlist_ref: any = React.createRef()
+
+    viewabilityConfig = {
+        viewAreaCoveragePercentThreshold: 95
+    }
 
     state: VideosState = {
         should_flatlist_update: 0, // Counting flag to update Flatlist when necessary
@@ -73,7 +80,7 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
             })
         }
     }
-    
+
     _keyExtractor = (item: string, index: number) => `videos-section-playlist-videoid-${item}-index-${index}`
 
     _renderItem: any = ({ item, index }: { item: string, index: number }) => (
@@ -138,11 +145,9 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
                     getItemLayout={this._getItemLayout}
                     ref={this.flatlist_ref}
                     initialScrollIndex={0}
-                    decelerationRate={0.99}
-                    snapToInterval={video_component_total_height}
-                    viewabilityConfig={{
-                        viewAreaCoveragePercentThreshold: 70 // Ensure only one video at a time
-                    }}
+                    viewabilityConfig={this.viewabilityConfig} // The property plays an important role in helping the App avoiding the bad effects of
+                    // "UNAUTHORIZED_OVERLAY" and "The Youtube Instance has released" errors since it makes components unmount quicker => Youtube Instance unmount
+                    // quicker.
                     onViewableItemsChanged={this._onViewableItemsChanged}
                 />
             </View>
@@ -279,9 +284,6 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
 
             // Scroll to the video first to avoid UNAUTHORIZED_OVERLAY
             this.props._scrollToVideo(next_video_index_in_channel_playlist)
-
-            // Update current_video_id
-            this.props.updateCurrentVideoId(next_video_id)
         }
 
         // If the ended video is the last one in the playlist, we proceed to the first video.
@@ -290,9 +292,6 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
 
             // Scroll to the video first to avoid UNAUTHORIZED_OVERLAY
             this.props._scrollToVideo(0)
-
-            // Update current_video_id
-            this.props.updateCurrentVideoId(first_video_id)
         }
     }
 
@@ -431,9 +430,9 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
     // with the component's videoId prop so the videoId becomes the current_video_id, which will be used to
     // activate Youtube Instance.
     _onPressImage = () => {
-        this.props.updateCurrentVideoId(this.props.videoId)
-
-        // Scroll to the video first to avoid UNAUTHORIZED_OVERLAY
+        // Scroll to the video first to avoid UNAUTHORIZED_OVERLAY.
+        // The aim is to have the current video index in channel list = video's index, which means
+        // this.props.current_video_index === this.props.index then follow the process in componentDidUpdate.
         this.props._scrollToVideo(this.props.index)
     }
 
@@ -442,23 +441,21 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         this._getVideoInfo(this.props.videoId)
     }
 
-    // When the video is focused (scrolled to), we update its video id as the current one to be able to mount Youtube Instance
     componentDidUpdate(prevProps: VideoProps, prevState: VideoState) {
         if (this.props.current_video_index !== prevProps.current_video_index) {
             if (this.props.current_video_index === this.props.index) {
-
                 // Because the Youtube Instance can only mount when satisfying 2 conditions: 
                 // 1. current video index in channel's play list === video's index (when video is focused/within the view area)
                 // 2. current video id from Redux's store === video's id (current video id is used to keep track of current video 
                 // with Youtube Instance mounted)
                 // To avoid "UNAUTHORIZED_OVERLAY" error, which will make Youtube Instance stops right after clicking on Play button, 
-                // We wait 500ms to make sure the video is in the right view area (condition 1 verified), then we update the Redux's store
+                // We wait 1s to make sure the video is in the right view area (condition 1 verified), then we update the Redux's store
                 // with video's id (condition 2 verified). This approach can also minimize the chance of encountering the error "The Youtube
                 // Instance has released", which means there are too many loading Youtube Instance at the same time (since Android only allow one Instance
                 // at a time).
                 setTimeout(() => {
                     this.props.updateCurrentVideoId(this.props.videoId)
-                }, 500)
+                }, 1000)
             }
         }
     }
@@ -478,10 +475,15 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         }
 
         return (
-            <View style={{
-                marginHorizontal: 22,
-                marginVertical: video_component_margin_vertical,
-            }}>
+            <TouchableOpacity
+                style={{
+                    marginHorizontal: 22,
+                    marginVertical: video_component_margin_vertical,
+                }}
+
+                onPress={this._onPressImage}
+                disabled={should_render_youtube_instance}
+            >
 
                 {should_render_youtube_instance ?
                     < Youtube
@@ -501,9 +503,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                     :
 
                     /* Display the thumbnail if the condition returns false for pressing */
-                    <TouchableOpacity
-                        onPress={this._onPressImage}
-                    >
+                    <View>
                         {this.state.thumbnail.length > 0 && (
                             <Image
                                 source={{ uri: this.state.thumbnail }}
@@ -513,7 +513,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                                 }}
                             />
                         )}
-                    </TouchableOpacity>
+                    </View>
                 }
 
                 <View
@@ -530,7 +530,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                         </Text>
                     </View>
                 </View>
-            </View>
+            </TouchableOpacity>
         )
     }
 }

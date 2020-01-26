@@ -20,7 +20,9 @@ export default class App extends React.PureComponent {
       <Provider store={store}>
         <StatusBar barStyle="light-content" animated={true} />
 
-        <AppContainer />
+        {/* <AppContainer /> */}
+
+        <Home />
       </Provider>
     );
   }
