@@ -5,7 +5,8 @@ import {
     NativeSyntheticEvent,
     NativeScrollEvent,
     ActivityIndicator,
-    StyleSheet
+    StyleSheet,
+    LayoutChangeEvent
 } from "react-native"
 import { GOOGLE_API_KEY_YOUTUBE } from "../../../config"
 import { colors } from "../../../style"
@@ -19,13 +20,14 @@ import axios from "axios"
 
 import Video from "./components/video/Video"
 
-const youtube_instance_height: number = 301             // The height of the Youtube Instance, as well as its alternative thumbnail.
-const video_information_section_height: number = 50     // The height of the component below the Youtube Instance that displays its title and "Watched" flag.
-const video_component_margin_vertical: number = 20      // The margin of the video component for nicely proportional UI.
+// Default orientation is portrait. Hardcode for styling.
+let youtube_instance_height: number = 301             // The height of the Youtube Instance, as well as its alternative thumbnail.
+let video_information_section_height: number = 50     // The height of the component below the Youtube Instance that displays its title and "Watched" flag.
+let video_component_margin_vertical: number = 20      // The margin of the video component for nicely proportional UI.
 
 /* This variable plays an important role in helping the app avoiding the bad effects of "UNAUTHORIZED_OVERLAY" and "The Youtube Instance has released" since it
 makes only 1 video component available in the main view area. it can also be used for scrolling methods, getItemLayout for initial scroll index, etc. */
-const video_component_total_height: number = youtube_instance_height + video_component_margin_vertical * 2 + video_information_section_height
+let video_component_total_height: number = youtube_instance_height + video_component_margin_vertical * 2 + video_information_section_height
 
 interface VideosState {
     should_flatlist_update: number,
@@ -326,6 +328,30 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         since it means the video component with that index is pressed. */
     }
 
+    // Detect screen orientation
+    _onLayout: (e: LayoutChangeEvent) => void = (e: LayoutChangeEvent) => {
+        let { height: view_height, width: view_width } = e.nativeEvent.layout
+
+        // Portrait
+        if (view_height > view_width) {
+            youtube_instance_height = 301
+            video_information_section_height = 50
+            video_component_margin_vertical = 20
+            video_component_total_height = youtube_instance_height + video_component_margin_vertical * 2 + video_information_section_height
+        }
+        // Landscape
+        else {
+            youtube_instance_height = 201
+            video_information_section_height = 50
+            video_component_margin_vertical = 20
+            video_component_total_height = youtube_instance_height + video_component_margin_vertical * 2 + video_information_section_height
+        }
+
+        this.setState(prevState => ({
+            should_flatlist_update: prevState.should_flatlist_update + 1
+        }))
+    }
+
     componentDidMount() {
         // Initially call the function to load the first channel's playlist since current_channel_index is initiallized as 0.
         this._updateFlatlistData()
@@ -350,6 +376,7 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         return (
             <View
                 style={style.container}
+                onLayout={this._onLayout}
             >
 
                 {this.state.should_load_activity_indicator ?
