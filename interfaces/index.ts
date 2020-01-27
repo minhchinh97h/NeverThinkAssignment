@@ -1,3 +1,7 @@
+/* 
+Contains all interfaces that are in use across the application.
+*/
+
 export interface ChannelInterface {
   id: number;
   name: string;

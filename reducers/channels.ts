@@ -1,4 +1,7 @@
-import {ChannelInterface, Action_updateCurrentChannel} from '../interfaces';
+import {
+  ChannelInterface,
+  Action_updateCurrentChannelIndex,
+} from '../interfaces';
 
 let initial_channels: Array<ChannelInterface> = [
   {
@@ -55,7 +58,7 @@ export const channels = (state = initial_channels, action: any) => {
 // The reducer helps the app render correct channel playlists when navigating to.
 export const current_channel_index = (
   state = 0,
-  action: Action_updateCurrentChannel,
+  action: Action_updateCurrentChannelIndex,
 ) => {
   switch (action.type) {
     case 'UPDATE_CURRENT_CHANNEL_INDEX':

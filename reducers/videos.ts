@@ -35,7 +35,7 @@ export const video_history = (
   }
 };
 
-// This is a mandatory condition for a Youtube Instance to be mounted. After the video is within the main view area of Flatlist,
+// This is the second condition for a Youtube Instance to be mounted. After the video is within the main view area of Flatlist,
 // which means it is not overlayed by any other components (Channels bar component) or partly hidden, the Youtube Instance will be mounted
 // after 1 second to avoid rendering Youtube Instance too fast causing "The youtube instance has released" error by updating this reducer.
 export const current_video_id = (
