@@ -1,5 +1,5 @@
 import React from "react"
-import { View, FlatList, Text, Image, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from "react-native"
+import { View, FlatList, Text, Image, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent, ActivityIndicator } from "react-native"
 import { GOOGLE_API_KEY_YOUTUBE } from "../../../config/index"
 import { ChannelInterface, VideoHistoryInterface, Action_updateCurrentVideoId, Action_updateVideoHistory } from "../../../interfaces"
 import style from "./style"
@@ -20,6 +20,7 @@ interface VideosState {
     current_video_index: number,
     should_display_flatlist: boolean,
     flatlist_data: Array<any>,
+    should_load_activity_indicator: boolean
 }
 
 interface VideosProps {
@@ -36,6 +37,8 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
     flatlist_ref: any = React.createRef()
     start_index: number = -1
 
+    recorded_video_index: number = -1
+
     _viewabilityConfig = {
         viewAreaCoveragePercentThreshold: 95
     }
@@ -47,6 +50,15 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         // It will be set to 0 (first video) when choosing a new channel.
         should_display_flatlist: false,
         flatlist_data: [],
+        should_load_activity_indicator: true
+    }
+
+    _changeChannelPlaylist = () => {
+        this.setState({
+            should_load_activity_indicator: true
+        }, () => {
+            this._updateFlatlistData()
+        })
     }
 
     // Draw the pressed or focused Youtube Instance view to the users
@@ -55,6 +67,8 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
             current_video_index: index,
             should_flatlist_update: prevState.should_flatlist_update + 1
         }), () => {
+            this.recorded_video_index = index
+
             if (this.flatlist_ref.current && this.flatlist_ref.current.scrollToOffset) {
                 this.flatlist_ref.current.scrollToOffset({
                     offset: index * video_component_total_height,
@@ -79,8 +93,9 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         // Check if the current video component's area intersect with outside of the main viewarea
         let y_top_offset = e.nativeEvent.contentOffset.y
         let y_bottom_offset = y_top_offset + flatlist_view_height
-        let youtube_instance_y_top_offset = current_video_index * video_component_total_height + video_component_margin_vertical * 0.5
-        let youtube_instance_y_bottom_offset = (current_video_index + 1) * video_component_total_height - video_component_margin_vertical * 1.5
+        let youtube_instance_y_top_offset = this.recorded_video_index * video_component_total_height + video_component_margin_vertical
+        // let youtube_instance_y_top_offset = current_video_index * video_component_total_height
+        let youtube_instance_y_bottom_offset = (this.recorded_video_index + 1) * video_component_total_height - video_component_margin_vertical
 
         // meaning the Youtube Instance is scrolled up => outside main view
         if (y_top_offset > youtube_instance_y_top_offset) {
@@ -92,6 +107,10 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         else if (y_bottom_offset < youtube_instance_y_bottom_offset) {
             this.setState({
                 current_video_index: -1
+            })
+        } else {
+            this.setState({
+                current_video_index: this.recorded_video_index
             })
         }
     }
@@ -206,7 +225,8 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         this.setState({
             should_display_flatlist: false,
             current_video_index: this.start_index,
-            flatlist_data
+            flatlist_data,
+            should_load_activity_indicator: false
         }, () => {
             this.setState({
                 should_display_flatlist: true
@@ -238,6 +258,9 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
                 return false
             }
         })
+
+
+        this.recorded_video_index = this.start_index
     }
 
     componentDidMount() {
@@ -255,7 +278,7 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
 
         // When changing the channel, we mount the new Flatlist with its initial scroll index to be the first unseen video.
         if (this.props.current_channel_index !== prevProps.current_channel_index) {
-            this._updateFlatlistData()
+            this._changeChannelPlaylist()
         }
 
         // Update Flatlist when the currently focused video is changed.
@@ -272,25 +295,40 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
                 style={style.container}
             >
 
-                {this.state.should_display_flatlist ?
-                    <FlatList
-                        data={this.state.flatlist_data} // the playlist of each currently used channel is the Flatlist's data.
-                        // Using this syntax for re-rendering whenever users change channel.
-                        extraData={this.state.should_flatlist_update}
-                        keyExtractor={this._keyExtractor}
-                        renderItem={this._renderItem}
-                        windowSize={11}
-                        initialNumToRender={11}
-                        maxToRenderPerBatch={11}
-                        getItemLayout={this._getItemLayout}
-                        ref={this.flatlist_ref}
-                        initialScrollIndex={this.start_index}
-                        viewabilityConfig={this._viewabilityConfig}
-                        scrollEventThrottle={1}
-                        onScroll={this._onScroll}
-                    />
+                {this.state.should_load_activity_indicator ?
+                    <View
+                        style={{
+                            marginTop: 20,
+                        }}
+                    >
+                        <ActivityIndicator
+                            size={"large"}
+                            color={"white"}
+                        />
+                    </View>
                     :
-                    null
+                    <>
+                        {this.state.should_display_flatlist ?
+                            <FlatList
+                                data={this.state.flatlist_data} // the playlist of each currently used channel is the Flatlist's data.
+                                // Using this syntax for re-rendering whenever users change channel.
+                                extraData={this.state.should_flatlist_update}
+                                keyExtractor={this._keyExtractor}
+                                renderItem={this._renderItem}
+                                windowSize={11}
+                                initialNumToRender={11}
+                                maxToRenderPerBatch={11}
+                                getItemLayout={this._getItemLayout}
+                                ref={this.flatlist_ref}
+                                initialScrollIndex={this.start_index}
+                                viewabilityConfig={this._viewabilityConfig}
+                                scrollEventThrottle={16}
+                                onScroll={this._onScroll}
+                            />
+                            :
+                            null
+                        }
+                    </>
                 }
             </View>
         )
@@ -392,11 +430,35 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         }
     }
 
+    _returnNextUnseenVideoIndexRecursive: (v: string, i: number, pl: number) => number = (videoId: string, index: number, playlist_length: number) => {
+        if (index === playlist_length - 1) {
+            return -1
+        }
+
+        let { video_history, playlist } = this.props
+
+        let video_history_index = video_history.findIndex((history: VideoHistoryInterface) => history.id === videoId)
+
+        if (video_history_index === -1) {
+            return index
+        } else {
+            let is_seen_video = video_history[video_history_index].seen
+            if (is_seen_video) {
+                let next_index = index + 1
+                let next_video_id = playlist[next_index]
+                return this._returnNextUnseenVideoIndexRecursive(next_video_id, next_index, playlist_length)
+            } else {
+                return index
+            }
+        }
+    }
+
     // Function is invoked when the Youtube Instance ended to play the next video in the current channel's playlist
     _playNextVideoInPlaylist = () => {
         let { playlist, videoId } = this.props
         // Retrieve playlist's length
         let playlist_length: number = playlist.length
+
 
         // Find the current video index based on the video's id in the channel's playlist.
         // No need for additional data structure for better performance since a playlist can contain up to a reasonal limit of videos
@@ -405,24 +467,16 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
             return video_id === videoId
         })
 
-        // If the ended video is not the last one in the playlist, we proceed to next video
-        if (current_video_index_in_channel_playlist < (playlist_length - 1)) {
-            let next_video_index_in_channel_playlist: number = current_video_index_in_channel_playlist + 1
+        let next_video_index_in_channel_playlist = current_video_index_in_channel_playlist + 1 === playlist_length ? 0 : current_video_index_in_channel_playlist + 1
+        let next_video_id = playlist[next_video_index_in_channel_playlist]
 
-            // To be able to mount the next video's Youtube Instance, we need to update the current_video_id prop.
-            // Lets find its video id first then update through Redux action later.
-            let next_video_id: string = playlist[next_video_index_in_channel_playlist]
+        let next_unseen_video_index = this._returnNextUnseenVideoIndexRecursive(next_video_id, next_video_index_in_channel_playlist, playlist_length)
 
+        if (next_unseen_video_index === - 1) {
             // Scroll to the video first to avoid UNAUTHORIZED_OVERLAY
             this.props._scrollToVideo(next_video_index_in_channel_playlist)
-        }
-
-        // If the ended video is the last one in the playlist, we proceed to the first video.
-        else {
-            let first_video_id: string = playlist[0]
-
-            // Scroll to the video first to avoid UNAUTHORIZED_OVERLAY
-            this.props._scrollToVideo(0)
+        } else {
+            this.props._scrollToVideo(next_unseen_video_index)
         }
     }
 

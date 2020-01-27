@@ -24,6 +24,7 @@ export const video_history = (
         s[index] = action.video_history;
         s = [...s];
       }
+
       return s;
 
     default:
