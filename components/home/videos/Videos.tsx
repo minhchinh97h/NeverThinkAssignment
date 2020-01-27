@@ -19,7 +19,7 @@ interface VideosState {
     should_flatlist_update: number,
     current_video_index: number,
     should_display_flatlist: boolean,
-    flatlist_data: Array<string>,
+    flatlist_data: Array<any>,
 }
 
 interface VideosProps {
@@ -79,8 +79,8 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         // Check if the current video component's area intersect with outside of the main viewarea
         let y_top_offset = e.nativeEvent.contentOffset.y
         let y_bottom_offset = y_top_offset + flatlist_view_height
-        let youtube_instance_y_top_offset = current_video_index * video_component_total_height + video_component_margin_vertical
-        let youtube_instance_y_bottom_offset = (current_video_index + 1) * video_component_total_height - video_component_margin_vertical
+        let youtube_instance_y_top_offset = current_video_index * video_component_total_height + video_component_margin_vertical * 0.5
+        let youtube_instance_y_bottom_offset = (current_video_index + 1) * video_component_total_height - video_component_margin_vertical * 1.5
 
         // meaning the Youtube Instance is scrolled up => outside main view
         if (y_top_offset > youtube_instance_y_top_offset) {
@@ -96,11 +96,14 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         }
     }
 
-    _keyExtractor = (item: string, index: number) => `videos-section-playlist-videoid-${item}-index-${index}`
+    // _keyExtractor = (item: string, index: number) => `videos-section-playlist-videoid-${item}-index-${index}`
+    _keyExtractor = (item: any, index: number) => `videos-section-playlist-videoid-${item.videoId}-index-${index}`
 
-    _renderItem: any = ({ item, index }: { item: string, index: number }) => (
+    _renderItem: any = ({ item, index }: { item: any, index: number }) => (
         <Video
-            videoId={item}
+            videoId={item.videoId}
+            thumbnail={item.thumbnail}
+            video_snippet={item.video_snippet}
             index={index}
             video_history={this.props.video_history}
             current_video_id={this.props.current_video_id}
@@ -113,24 +116,100 @@ export default class Videos extends React.PureComponent<VideosProps, VideosState
         />
     )
 
-    _updateFlatlistData = () => {
+    // Check if the thumbnail's uri is a valid string since it maybe null or empty
+    _checkIfThumbNailUriValid = (uri: string) => {
+        if (uri.length > 0) {
+            return true
+        }
+
+        return false
+    }
+
+    // Always use the highest resolution of thumbnail picture
+    _returnHighestThumbnailRes = (thumbnails: any) => {
+        // There are possibly 5 resolutions in total: maxres, standard, high, medium, default (highest -> lowest).
+        // Repeatively check each resolution for its availability.
+        let thumbnail_uri: string = thumbnails.maxres ? thumbnails.maxres.url : ""
+
+        if (!this._checkIfThumbNailUriValid(thumbnail_uri)) {
+            thumbnail_uri = thumbnails.standard ? thumbnails.standard.url : ""
+
+            if (!this._checkIfThumbNailUriValid(thumbnail_uri)) {
+                thumbnail_uri = thumbnails.high ? thumbnails.high.url : ""
+
+                if (!this._checkIfThumbNailUriValid(thumbnail_uri)) {
+                    thumbnail_uri = thumbnails.medium ? thumbnails.medium.url : ""
+
+                    if (!this._checkIfThumbNailUriValid(thumbnail_uri)) {
+                        thumbnail_uri = thumbnails.default ? thumbnails.default.url : ""
+                    }
+                }
+            }
+        }
+
+        return thumbnail_uri
+    }
+
+    _callGetVideoObjectAsync = (videoId: string) => {
+        // Using Youtube v3 API for retrieving video object.
+        return axios({
+            method: "GET",
+            url: "https://www.googleapis.com/youtube/v3/videos",
+            params: {
+                key: GOOGLE_API_KEY_YOUTUBE,
+                part: "snippet",
+                id: videoId
+            }
+        })
+            .then((res) => {
+                let snippet = res.data.items[0].snippet
+                let thumbnail_uri: string = this._returnHighestThumbnailRes(snippet.thumbnails)
+
+                return ({
+                    thumbnail: thumbnail_uri,
+                    video_snippet: snippet,
+                    videoId
+                })
+            })
+            .catch(err => {
+                // HANDLE ERRORS
+                return ({
+                    thumbnail: "",
+                    video_snippet: {},
+                    videoId
+                })
+            })
+    }
+
+    _callPromises = () => {
+        let { current_channel_index, channels } = this.props
+        let { playlist } = channels[current_channel_index]
+
+        let promise_array = playlist.map((video_id: string) => this._callGetVideoObjectAsync(video_id))
+
+        return Promise.all(promise_array)
+    }
+
+    _updateFlatlistData = async () => {
         this._findStartIndex()
+
+        let flatlist_data: Array<any> = []
+
+        try {
+            flatlist_data = await this._callPromises()
+        }
+        catch (err) {
+            // HANDLER ERRORS
+            flatlist_data = []
+        }
 
         this.setState({
             should_display_flatlist: false,
-            current_video_index: -1,
+            current_video_index: this.start_index,
+            flatlist_data
         }, () => {
-            let { current_channel_index, channels } = this.props
-
-            let flatlist_data = channels[current_channel_index].playlist
-
             this.setState({
-                flatlist_data
-            }, () => {
-                this.setState({
-                    should_display_flatlist: true
-                }, () => {
-                })
+                should_display_flatlist: true
             })
         })
     }
@@ -229,13 +308,13 @@ interface VideoProps {
     playlist: string[],
     current_video_index: number,
     updateVideoHistory: (v: VideoHistoryInterface) => Action_updateVideoHistory,
-    start_index: number
+    start_index: number,
+    thumbnail: string,
+    video_snippet: any,
 }
 
 // Interface for component Video's state
 interface VideoState {
-    thumbnail: string,
-    video_snippet: any,
     should_play_youtube_instance: boolean,
 }
 
@@ -252,61 +331,64 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
     mounted = false
 
     state: VideoState = {
-        thumbnail: "", // The thumnail url to mimic multiple Youtube players in Android 
-        // since react-native-youtube for Android is singleton.
-        video_snippet: {}, // Hold the video's information such as title, description, thumbnails, etc
-        // via axios call to mimic multiple Youtube players in Android.
         should_play_youtube_instance: true, // Controll the play/pause function of Youtube instance.
     }
 
     // Event of Youtube Instance <Youtube /> to capture the instance's state
-    _onChangeState = async (e: any) => {
+    _onChangeState = (e: any) => {
         // Get state of currently played Youtube Instance: stopped, loading, started, seeking - current time, buffering, playing, paused
         let { state } = e
 
         // Video ends.
         // When Youtube Instance ended, we play the next video.
         if (state === "stopped") {
-            // There are 2 "stopped" state, one for the initialization and one for the ending of the video.
-            // We need the latter one so we can compare the video's current playing time with its own duration
-            // To see whether the video has ended or not.
-            try {
-                let current_video_time: number = await this._returnCurrentTimeOfPlayedVideo()
-                let video_duration: number = await this._returnDurationOfPlayedVideo()
-
-                // At the first stage (video initialization), both current_video_time and video_duration are equal to 0.
-                if (current_video_time === video_duration && current_video_time > 0) {
-                    this._playNextVideoInPlaylist()
-
-                    // Record video into history.
-                    // Only add video into history when the video stopped at phase 2 (ended) and we reset parameters to 0
-                    // so later when users want to see the video again, it will start from 0 second.
-                    this._recordVideoHistory(current_video_time, video_duration)
-                }
-            }
-
-            catch (err) {
-                this._recordVideoHistory(0, 0)
-            }
-
+            this._executeWhenVideoStopped()
         }
         // Video paused.
         // We will record the video's playing data such as its id, current paused time, is the playing time is long enough
         // to consider a seen video
         else if (state === "paused") {
-            try {
-                let current_video_time: number = await this._returnCurrentTimeOfPlayedVideo()
-                let video_duration: number = await this._returnDurationOfPlayedVideo()
+            this._executeWhenVideoPaused()
+        }
+    }
 
-                // Record video into history
+    _executeWhenVideoStopped = async () => {
+        // There are 2 "stopped" state, one for the initialization and one for the ending of the video.
+        // We need the latter one so we can compare the video's current playing time with its own duration
+        // To see whether the video has ended or not.
+        try {
+            let current_video_time: number = await this._returnCurrentTimeOfPlayedVideo()
+            let video_duration: number = await this._returnDurationOfPlayedVideo()
+
+            // At the first stage (video initialization), both current_video_time and video_duration are equal to 0.
+            if (current_video_time === video_duration && current_video_time > 0) {
+                this._playNextVideoInPlaylist()
+
+                // Record video into history.
+                // Only add video into history when the video stopped at phase 2 (ended) and we reset parameters to 0
+                // so later when users want to see the video again, it will start from 0 second.
                 this._recordVideoHistory(current_video_time, video_duration)
             }
+        }
 
-            catch (err) {
-                // When video's current time or video's duration is undefined
-                // Record video into history
-                this._recordVideoHistory(0, 0)
-            }
+        catch (err) {
+            this._recordVideoHistory(0, 0)
+        }
+    }
+
+    _executeWhenVideoPaused = async () => {
+        try {
+            let current_video_time: number = await this._returnCurrentTimeOfPlayedVideo()
+            let video_duration: number = await this._returnDurationOfPlayedVideo()
+
+            // Record video into history
+            this._recordVideoHistory(current_video_time, video_duration)
+        }
+
+        catch (err) {
+            // When video's current time or video's duration is undefined
+            // Record video into history
+            this._recordVideoHistory(0, 0)
         }
     }
 
@@ -427,70 +509,6 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
         })
     }
 
-    // Check if the thumbnail's uri is a valid string since it maybe null or empty
-    _checkIfThumbNailUriValid = (uri: string) => {
-        if (uri.length > 0) {
-            return true
-        }
-
-        return false
-    }
-
-    // Always use the highest resolution of thumbnail picture
-    _returnHighestThumbnailRes = (thumbnails: any) => {
-        // There are possibly 5 resolutions in total: maxres, standard, high, medium, default (highest -> lowest).
-        // Repeatively check each resolution for its availability.
-        let thumbnail_uri: string = thumbnails.maxres ? thumbnails.maxres.url : ""
-
-        if (!this._checkIfThumbNailUriValid(thumbnail_uri)) {
-            thumbnail_uri = thumbnails.standard ? thumbnails.standard.url : ""
-
-            if (!this._checkIfThumbNailUriValid(thumbnail_uri)) {
-                thumbnail_uri = thumbnails.high ? thumbnails.high.url : ""
-
-                if (!this._checkIfThumbNailUriValid(thumbnail_uri)) {
-                    thumbnail_uri = thumbnails.medium ? thumbnails.medium.url : ""
-
-                    if (!this._checkIfThumbNailUriValid(thumbnail_uri)) {
-                        thumbnail_uri = thumbnails.default ? thumbnails.default.url : ""
-                    }
-                }
-            }
-        }
-
-        return thumbnail_uri
-    }
-
-    // Call this in ComponentDidMount() to initialize the video's snippet based on provided this.props.videoId
-    _getVideoInfo = (videoId: string) => {
-        // Using Youtube v3 API for retrieving video object.
-        axios({
-            method: "GET",
-            url: "https://www.googleapis.com/youtube/v3/videos",
-            params: {
-                key: GOOGLE_API_KEY_YOUTUBE,
-                part: "snippet",
-                id: videoId
-            }
-        })
-            .then((res) => {
-                // Only proceed if the component is mounted to avoid memory leak
-                if (this.mounted) {
-                    let snippet = res.data.items[0].snippet
-
-                    let thumbnail_uri: string = this._returnHighestThumbnailRes(snippet.thumbnails)
-
-                    this.setState({
-                        thumbnail: thumbnail_uri,
-                        video_snippet: snippet
-                    })
-                }
-            })
-            .catch(err => {
-                // HANDLE ERRORS
-            })
-    }
-
     // When pressing on the image (no Youtube Instance mounted), we update Redux's current_video_id reducer
     // with the component's videoId prop so the videoId becomes the current_video_id, which will be used to
     // activate Youtube Instance.
@@ -503,25 +521,26 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
 
     componentDidMount() {
         this.mounted = true
-        this._getVideoInfo(this.props.videoId)
 
         if (this.props.start_index === this.props.index) {
-            this._onPressImage()
+            // Because the Youtube Instance can only mount when satisfying 2 conditions: 
+            // 1. current video index in channel's play list === video's index (when video is focused/within the view area)
+            // 2. current video id from Redux's store === video's id (current video id is used to keep track of current video 
+            // with Youtube Instance mounted)
+            // To avoid "UNAUTHORIZED_OVERLAY" error, which will make Youtube Instance stops right after clicking on Play button, 
+            // We wait 1s to make sure the video is in the right view area (condition 1 verified), then we update the Redux's store
+            // with video's id (condition 2 verified). This approach can also minimize the chance of encountering the error "The Youtube
+            // Instance has released", which means there are too many loading Youtube Instance at the same time (since Android only allow one Instance
+            // at a time).
+            setTimeout(() => {
+                this.props.updateCurrentVideoId(this.props.videoId)
+            }, 1000)
         }
     }
 
     componentDidUpdate(prevProps: VideoProps, prevState: VideoState) {
         if (this.props.current_video_index !== prevProps.current_video_index) {
             if (this.props.current_video_index === this.props.index) {
-                // Because the Youtube Instance can only mount when satisfying 2 conditions: 
-                // 1. current video index in channel's play list === video's index (when video is focused/within the view area)
-                // 2. current video id from Redux's store === video's id (current video id is used to keep track of current video 
-                // with Youtube Instance mounted)
-                // To avoid "UNAUTHORIZED_OVERLAY" error, which will make Youtube Instance stops right after clicking on Play button, 
-                // We wait 1s to make sure the video is in the right view area (condition 1 verified), then we update the Redux's store
-                // with video's id (condition 2 verified). This approach can also minimize the chance of encountering the error "The Youtube
-                // Instance has released", which means there are too many loading Youtube Instance at the same time (since Android only allow one Instance
-                // at a time).
                 setTimeout(() => {
                     this.props.updateCurrentVideoId(this.props.videoId)
                 }, 1000)
@@ -576,9 +595,9 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
 
                         /* Display the thumbnail if the condition returns false for pressing */
                         <View>
-                            {this.state.thumbnail.length > 0 && (
+                            {this.props.thumbnail.length > 0 && (
                                 <Image
-                                    source={{ uri: this.state.thumbnail }}
+                                    source={{ uri: this.props.thumbnail }}
                                     style={{
                                         flex: 1,
                                         height: youtube_instance_height
@@ -604,8 +623,7 @@ class Video extends React.PureComponent<VideoProps, VideoState> {
                             flex: 1,
                         }}>
                             <Text style={style.video_title}>
-                                {this.state.video_snippet.title}
-
+                                {this.props.video_snippet.title}
                             </Text>
                         </View>
 
