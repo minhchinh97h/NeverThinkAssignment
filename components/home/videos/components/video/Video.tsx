@@ -98,26 +98,29 @@ export default class Video extends React.PureComponent<VideoProps, VideoState> {
     }
 
     /* Recursively return the next unseen video. The process will work circularly at the last index and one-way at the rest, meaning it only return
-    the next "unseen" video from top to bottom order. If there is none unseen video, return -1 */
-    _returnNextUnseenVideoIndexRecursive: (v: string, i: number, pl: number) => number = (videoId: string, index: number, playlist_length: number) => {
-        if (index === playlist_length - 1) {
+    the next "unseen" video from top to bottom order. If there is none unseen video or reaching the end of the playlist, return -1 */
+    _returnNextUnseenVideoIndexRecursive: (i: number, pl: number) => number = (current_index: number, playlist_length: number) => {
+        /* Base case. Exit when reaching the end of the playlist. Return to the first video when the last video ended. After that, the 
+        app will play the next unseen video if there is, or it will play video by video as normal. */
+        if (current_index === playlist_length - 1) {
             return -1
         }
 
         let { video_history, playlist } = this.props
+        let next_index = current_index + 1 === playlist_length ? 0 : current_index + 1
+        let next_video_id = playlist[next_index]
 
-        let video_history_index = video_history.findIndex((history: VideoHistoryInterface) => history.id === videoId)
+        let video_history_index = video_history.findIndex((history: VideoHistoryInterface) => history.id === next_video_id)
 
-        if (video_history_index === -1) {
-            return index
+        if (video_history_index === - 1) {
+            return next_index
         } else {
             let is_seen_video = video_history[video_history_index].seen
+
             if (is_seen_video) {
-                let next_index = index + 1
-                let next_video_id = playlist[next_index]
-                return this._returnNextUnseenVideoIndexRecursive(next_video_id, next_index, playlist_length)
+                return this._returnNextUnseenVideoIndexRecursive(next_index, playlist_length)
             } else {
-                return index
+                return next_index
             }
         }
     }
@@ -138,11 +141,8 @@ export default class Video extends React.PureComponent<VideoProps, VideoState> {
         // Get the next video index in playlist circularly.
         let next_video_index_in_channel_playlist = current_video_index_in_channel_playlist + 1 === playlist_length ? 0 : current_video_index_in_channel_playlist + 1
 
-        // Get the next video's id in playlist
-        let next_video_id = playlist[next_video_index_in_channel_playlist]
-
-        // Get the next unseen video's index in playlist. Return -1 if none.
-        let next_unseen_video_index = this._returnNextUnseenVideoIndexRecursive(next_video_id, next_video_index_in_channel_playlist, playlist_length)
+        // Get the next unseen video's index in playlist based on current video index in playlist. Return -1 if none.
+        let next_unseen_video_index = this._returnNextUnseenVideoIndexRecursive(current_video_index_in_channel_playlist, playlist_length)
 
         if (next_unseen_video_index === - 1) {
             // Scroll to the next video circularly. Satisfy the first condition to render Youtube Instance.
@@ -203,11 +203,10 @@ export default class Video extends React.PureComponent<VideoProps, VideoState> {
     // Event of Youtube Instance <Youtube />
     _onError = (e: any) => {
         // HANDLE ERRORS
-        // Sometimes when the app is initializing, we will encounter error "INTERNAL_ERROR" which will cause
-        // Youtube Instance stall.
-        if (e.error === "INTERNAL_ERROR") {
-            this.props._scrollToVideo(this.props.current_video_index)
-        }
+        /* Sometimes when the app is initializing, we will encounter error "INTERNAL_ERROR" which will force
+        manual activation by scroll away the video and come back.*/
+        /* Currently, the errors "UNAUTHORIZED_OVERLAY" and "The Youtube Instance has released" are hardly visible, at least
+        with my testing.*/
     }
 
     // Get the current time of the Youtube instance when called (this is a promise)
