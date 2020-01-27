@@ -1,3 +1,7 @@
+/* 
+  Connector component
+*/
+
 import {connect} from 'react-redux';
 import Videos from './Videos';
 import {rootReducerInterface, VideoHistoryInterface} from 'interfaces';

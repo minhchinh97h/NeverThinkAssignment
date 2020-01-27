@@ -1,7 +1,11 @@
+/* 
+  Connector component 
+*/
+
 import {connect} from 'react-redux';
 import Channels from './Channels';
 import {rootReducerInterface} from '../../../interfaces';
-import {updateCurrentChannel} from './action';
+import {updateCurrentChannelIndex} from './action';
 
 const mapStateToProps = (state: rootReducerInterface) => ({
   channels: state.channels,
@@ -9,8 +13,8 @@ const mapStateToProps = (state: rootReducerInterface) => ({
 });
 
 const mapDispatchToProps: (d: any) => any = (dispatch: any) => ({
-  updateCurrentChannel: (current_channel_index: number) =>
-    dispatch(updateCurrentChannel(current_channel_index)),
+  updateCurrentChannelIndex: (current_channel_index: number) =>
+    dispatch(updateCurrentChannelIndex(current_channel_index)),
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Channels);

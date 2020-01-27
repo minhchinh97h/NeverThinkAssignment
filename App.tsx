@@ -9,7 +9,7 @@ import { createStackNavigator } from "react-navigation-stack";
 import { createStore } from "redux";
 import { Provider } from "react-redux";
 import rootReducer from "./reducers";
-import Home from "./components/home/Home.Container";
+import Home from "./components/home/Home";
 
 const STATUS_BAR_HEIGHT = getStatusBarHeight()
 const store = createStore(rootReducer)

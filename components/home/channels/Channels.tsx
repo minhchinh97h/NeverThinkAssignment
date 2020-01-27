@@ -1,25 +1,16 @@
 import React from "react";
-import { View, Text, Image, FlatList, TouchableOpacity } from "react-native";
-import style from "./style";
-import { ChannelInterface, Action_updateCurrentChannel } from "../../../interfaces"
-
-interface ChannelsState {
-    current_index: number,
-    last_index: number
-}
+import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+import { colors } from "../../../style"
+import { ChannelInterface, Action_updateCurrentChannelIndex } from "../../../interfaces"
 
 interface ChannelsProps {
     channels: Array<ChannelInterface>,
     current_channel_index: number,
-    updateCurrentChannel: (n: number) => Action_updateCurrentChannel
+    updateCurrentChannelIndex: (n: number) => Action_updateCurrentChannelIndex
 }
 
-export default class Channels extends React.PureComponent<ChannelsProps, ChannelsState> {
-
-    state: ChannelsState = {
-        current_index: 0,
-        last_index: -1,
-    }
+// A horizontally scrolling top bar for channels
+export default class Channels extends React.PureComponent<ChannelsProps> {
 
     _keyExtractor = (item: ChannelInterface, index: number) => `channel-id-${item.id}-index-${index}`
 
@@ -27,7 +18,7 @@ export default class Channels extends React.PureComponent<ChannelsProps, Channel
         <Channel
             index={index}
             data={item}
-            updateCurrentChannel={this.props.updateCurrentChannel}
+            updateCurrentChannelIndex={this.props.updateCurrentChannelIndex}
         />
     )
 
@@ -53,24 +44,19 @@ export default class Channels extends React.PureComponent<ChannelsProps, Channel
 interface ChannelProps {
     index: number,
     data: ChannelInterface,
-    updateCurrentChannel: (n: number) => Action_updateCurrentChannel
+    updateCurrentChannelIndex: (n: number) => Action_updateCurrentChannelIndex
 }
 
-interface ChannelState {
-
-}
-
-class Channel extends React.PureComponent<ChannelProps, ChannelState> {
-
-    state: ChannelState = {
-
-    }
+// Channel item rendering each channel's icon and name. 
+// Act as buttons to navigate to channel playlists.
+class Channel extends React.PureComponent<ChannelProps> {
 
     _onPress = () => {
-        this.props.updateCurrentChannel(this.props.index)
+        this.props.updateCurrentChannelIndex(this.props.index)
     }
 
     componentDidMount() {
+        // Cache the icon for future loading
         Image.prefetch(this.props.data.icon)
     }
 
@@ -104,3 +90,31 @@ class Channel extends React.PureComponent<ChannelProps, ChannelState> {
         )
     }
 }
+
+const style = StyleSheet.create({
+    channels_container: {
+        borderBottomWidth: 1,
+        borderBottomColor: colors.primary,
+        flexDirection: 'row',
+        backgroundColor: colors.primary,
+    },
+
+    channels_flatlist_container: {
+        paddingVertical: 11,
+        flex: 1,
+    },
+
+    channel_container: {
+        width: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginHorizontal: 20,
+    },
+
+    channel_title: {
+        fontSize: 14,
+        lineHeight: 17,
+        letterSpacing: -0.02,
+        color: 'white',
+    },
+})

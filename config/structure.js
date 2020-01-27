@@ -1,1 +1,1 @@
-// export const GOOGLE_API_KEY_YOUTUBE = "APIKEY"
+// export const GOOGLE_API_KEY_YOUTUBE:string = "APIKEY"

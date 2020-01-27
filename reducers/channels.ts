@@ -43,6 +43,7 @@ let initial_channels: Array<ChannelInterface> = [
   },
 ];
 
+// Used as a hard-code array of provided channel information for components to retrieve globally.
 export const channels = (state = initial_channels, action: any) => {
   switch (action.type) {
     default:
@@ -50,7 +51,8 @@ export const channels = (state = initial_channels, action: any) => {
   }
 };
 
-// Initially when the app starts, current_channel will be at 0 (zero-based) index of channels array.
+// Initially when the app starts, current_channel will be at 0 (zero-based) index of channels array, meaning the first channel.
+// The reducer helps the app render correct channel playlists when navigating to.
 export const current_channel_index = (
   state = 0,
   action: Action_updateCurrentChannel,

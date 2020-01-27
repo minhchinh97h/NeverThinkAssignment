@@ -18,7 +18,7 @@ export interface VideoHistoryInterface {
   seen: boolean;
 }
 
-export interface Action_updateCurrentChannel {
+export interface Action_updateCurrentChannelIndex {
   type: 'UPDATE_CURRENT_CHANNEL_INDEX';
   current_channel_index: number;
 }

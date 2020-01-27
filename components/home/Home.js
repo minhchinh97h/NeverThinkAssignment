@@ -4,21 +4,6 @@ import Channels from './channels/Channels.Container';
 import Videos from './videos/Videos.Container';
 
 export default class Home extends React.PureComponent {
-  static navigationOptions = () => ({});
-
-  state = {
-    data: [
-      {
-        id: 'channels',
-      },
-      {
-        id: 'videos',
-      },
-    ],
-  };
-
-  componentDidMount() {}
-
   render() {
     return (
       <View
@@ -26,7 +11,6 @@ export default class Home extends React.PureComponent {
           flex: 1,
         }}>
         <Channels />
-
         <Videos />
       </View>
     );
