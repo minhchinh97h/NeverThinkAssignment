@@ -20,7 +20,7 @@ import axios from "axios"
 
 import Video from "./components/video/Video"
 
-// Default orientation is portrait. Hardcode for styling.
+// Default orientation is portrait. Hardcode for styling. Recommend using Portrait.
 let youtube_instance_height: number = 301             // The height of the Youtube Instance, as well as its alternative thumbnail.
 let video_information_section_height: number = 50     // The height of the component below the Youtube Instance that displays its title and "Watched" flag.
 let video_component_margin_vertical: number = 20      // The margin of the video component for nicely proportional UI.
