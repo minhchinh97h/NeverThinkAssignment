@@ -20,7 +20,7 @@ All packages can be found in `package.json`.
 device or devices with similar height to have the best testing experience.
 
 ## Installation
-Make sure to follow <a href="https://facebook.github.io/react-native/docs/getting-started">React Native's Android installation guide.</a>
+Clone the repo and make sure to follow <a href="https://facebook.github.io/react-native/docs/getting-started">React Native's Android installation guide.</a>
 
 Install packages with the command:
 ```bash
